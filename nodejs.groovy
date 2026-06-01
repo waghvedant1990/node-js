@@ -1,71 +1,85 @@
 pipeline {
     agent any
-   tools {
-    nodejs 'nodejs-20'
-   }
-   environment {
-    IMAGE_NAME = 'node-demo-app'
-    DOCKER_REPO = 'waghvedant/node-demo-sample'
-    CONTAINER_NAME = 'node-demo-container'
-   }
-   stages {
-    stage('Checkout') {
-        steps {
-            git branch: 'main', url: 'https://github.com/waghvedant1990/node-js.git'
-        }
+    
+    tools {
+        nodejs 'NodeJS-20'
     }
-    stage('verify environments') {
-        steps {
-            sh '''
-            echo "Node.js version"  
-            node -v 
-            echo "NPM version"
-            npm -v
-        
-            echo "docker version"
-            docker --version
-            '''
 
-}
+    environment {
+        IMAGE_NAME = "node-demo-app"
+        DOCKER_REPO = "mayurmwagh/node-demo-sample"
+        CONTAINER_NAME = "node-demo-container"
     }
-    stage('install dependencies') {
-        steps {
-            sh 'npm install'
+    stages {
+        stage('checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/waghvedant1990/node-js.git'
+            }
         }
-    }
-    stage('run tests') {
-        steps {
-            sh 'npm test'
+    
+        stage('Verify Environment') {
+            steps {
+                sh '''
+                echo "Node Version:"
+                node -v
+
+                echo "NPM Version:"
+                npm -v
+
+                echo "Docker Version:"
+                docker --version
+                '''
+            }
         }
-    }
-    stage('build docker image') {
-        steps {
-            sh "docker build -t ${IMAGE_NAME} ."
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install' 
+            }
         }
-    }
-    stage ('Docker login') {
-        steps {
-            withCredentials([
-                usernamePassword(credentialsId: 'dockerhub-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')
-            ]) {
-                sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+        stage('Run Tests') {
+            steps {
+                sh 'npm test'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t ${DOCKER_REPO}:${BUILD_NUMBER} .
+                ''' 
+            }
+        }
+        stage('Docker Login') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSORD'
+                    )
+                ]) {
+                    sh 'docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}'
+                }
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                sh '''
+                docker push ${DOCKER_REPO}:${BUILD_NUMBER}
+                '''
+            }
+        }
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                docker rm -f ${CONTAINER_NAME} || true
+
+                docker run -d \
+                --name ${CONTAINER_NAME} \
+                -p 3000:3000 \
+                ${DOCKER_REPO}:${BUILD_NUMBER}
+                '''
             }
         }
     }
-    stage('push docker image') {
-        steps {
-            docker push "${DOCKER_REPO}:${BUILD_NUMBER}"
-        }
-    }
-    stage('deploy container') {
-        steps {
-            sh '''
-            docker pull ${DOCKER_REPO}:${BUILD_NUMBER}
-            docker stop ${CONTAINER_NAME} || true
-            docker rm ${CONTAINER_NAME} || true
-            docker run -d --name ${CONTAINER_NAME} -p 3000:3000 ${DOCKER_REPO}:${BUILD_NUMBER}
-            '''
-        }
-    }
-   }
-}
+}       
