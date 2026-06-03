@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        node-kol
+    }
     
     tools {
         nodejs 'nodejs'
