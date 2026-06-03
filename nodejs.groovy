@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        node-kol
+        label 'node-kol'
     }
     
     tools {
