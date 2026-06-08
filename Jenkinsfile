@@ -1,8 +1,5 @@
 pipeline {
-    agent {
-        label 'my-node'
-    }
-    
+   agent any
     tools {
         nodejs 'nodejs'
     }
